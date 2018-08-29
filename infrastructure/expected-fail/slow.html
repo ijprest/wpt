@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<!-- DO NOT MERGE -->
+<meta charset=utf-8>
+<title>Test that should time out</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => setTimeout(t.step_func(function() {t.done()}), 8000), "slow test");
+</script>
