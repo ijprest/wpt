@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+<body>
+<script>
+    test(t => {
+      let p = createURL_policy(window, '');
+      let url = p.createURL(INPUTS.URL);
+      let elem = document.createElement('a');
+      elem.setAttribute('href', url);
+      assert_equals(elem.href + "", RESULTS.URL);
+  }, "setAttribute assigned via policy (successful URL transformation)");
+</script>

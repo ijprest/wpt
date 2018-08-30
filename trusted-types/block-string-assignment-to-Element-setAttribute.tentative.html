@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types">
+</head>
+<body>
+<script>
+  // TrustedURL assignments do not throw.
+  test(t => {
+      let p = createURL_policy(window, '0');
+      let url = p.createURL(INPUTS.URL);
+      let elem = document.createElement('a');
+      elem.setAttribute('href', url);
+      assert_equals(elem.href + "", RESULTS.URL);
+  }, "setAttribute assigned via policy (successful URL transformation)");
+
+  // String assignments throw.
+  test(t => {
+      let p = createURL_policy(window, '1');
+      let elem = document.createElement('a');
+      assert_throws(new TypeError(), _ => {
+        elem.setAttribute('href', 'A string');
+      });
+  }, "`setAttribute = string` throws.");
+
+  // Null assignment throws.
+  test(t => {
+      let p = createURL_policy(window, '2');
+      let elem = document.createElement('a');
+      assert_throws(new TypeError(), _ => {
+        elem.setAttribute('href', null);
+      });
+  }, "`setAttribute = null` throws.");
+</script>
+</body>
+</html>
