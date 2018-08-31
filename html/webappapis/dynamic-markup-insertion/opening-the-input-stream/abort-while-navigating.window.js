@@ -4,16 +4,14 @@ async_test(t => {
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
     frame.onload = null;
-    let sync = true;
     const client = new frame.contentWindow.XMLHttpRequest();
     client.open("GET", "/common/blank.html");
-    client.onabort = t.step_func_done(e => {
-      assert_true(sync);
-    });
+    // The abort event handler is called synchronously in Chrome but
+    // asynchronously in Firefox. See https://crbug.com/879620.
+    client.onabort = t.step_func_done();
     client.send();
     frame.contentWindow.location.href = new URL("resources/dummy.html", document.URL);
     frame.contentDocument.open();
-    sync = false;
   });
 }, "document.open() aborts documents that are navigating through Location (XMLHttpRequest)");
 
@@ -61,13 +59,11 @@ async_test(t => {
 async_test(t => {
   const div = document.body.appendChild(document.createElement("div"));
   t.add_cleanup(() => div.remove());
-  div.innerHTML = "<iframe src='/common/blank.html'></iframe>";
+  div.innerHTML = "<iframe src='resources/slow.py'></iframe>";
   const frame = div.childNodes[0];
   const client = new frame.contentWindow.XMLHttpRequest();
   client.open("GET", "/common/blank.html");
-  client.onabort = t.step_func_done(e => {
-    frame.contentDocument.close();
-  });
+  client.onabort = t.step_func_done();
   client.send();
   frame.contentDocument.open();
 }, "document.open() aborts documents that are navigating through iframe loading (XMLHttpRequest)");
@@ -75,20 +71,18 @@ async_test(t => {
 async_test(t => {
   const div = document.body.appendChild(document.createElement("div"));
   t.add_cleanup(() => div.remove());
-  div.innerHTML = "<iframe src='/common/blank.html'></iframe>";
+  div.innerHTML = "<iframe src='resources/slow.py'></iframe>";
   const frame = div.childNodes[0];
   frame.contentWindow.fetch("/common/blank.html").then(
     t.unreached_func("Fetch should have been aborted"),
-    t.step_func_done(err => {
-      frame.contentDocument.close();
-    }));
+    t.step_func_done());
   frame.contentDocument.open();
 }, "document.open() aborts documents that are navigating through iframe loading (fetch())");
 
 async_test(t => {
   const div = document.body.appendChild(document.createElement("div"));
   t.add_cleanup(() => div.remove());
-  div.innerHTML = "<iframe src='/common/blank.html'></iframe>";
+  div.innerHTML = "<iframe src='resources/slow.py'></iframe>";
   const frame = div.childNodes[0];
   let happened = false;
   const img = frame.contentDocument.createElement("img");
@@ -116,9 +110,7 @@ async_test(t => {
 
     const client = new frame.contentWindow.XMLHttpRequest();
     client.open("GET", "/common/blank.html");
-    client.onabort = t.step_func_done(e => {
-      frame.contentDocument.close();
-    });
+    client.onabort = t.step_func_done();
     client.send();
 
     link.click();
@@ -137,9 +129,7 @@ async_test(t => {
 
     frame.contentWindow.fetch("/common/blank.html").then(
       t.unreached_func("Fetch should have been aborted"),
-      t.step_func_done(err => {
-        frame.contentDocument.close();
-      }));
+      t.step_func_done());
 
     link.click();
     frame.contentDocument.open();
