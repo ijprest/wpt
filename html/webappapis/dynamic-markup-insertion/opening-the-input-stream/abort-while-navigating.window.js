@@ -43,9 +43,6 @@ async_test(t => {
     const img = frame.contentDocument.createElement("img");
     img.src = new URL("resources/slow-png.py", document.URL);
     img.onload = t.unreached_func("Image loading should have errored");
-    img.onerror = t.step_func_done(() => {
-      assert_true(happened);
-    });
     // The image fetch starts in a microtask, so let's be sure to test after
     // the fetch has started.
     t.step_timeout(() => {
@@ -53,6 +50,11 @@ async_test(t => {
       frame.contentDocument.open();
       happened = true;
     });
+    // If 3 seconds have passed and the image has still not loaded, we consider
+    // it aborted. slow-png.py only sleeps for 2 wallclock seconds.
+    t.step_timeout(t.step_func_done(() => {
+      assert_true(happened);
+    }), 3000);
   });
 }, "document.open() aborts documents that are navigating through Location (image loading)");
 
@@ -79,6 +81,8 @@ async_test(t => {
   frame.contentDocument.open();
 }, "document.open() aborts documents that are navigating through iframe loading (fetch())");
 
+// We use resources/slow.py here, to prevent the situation where when
+// document.open() is called the initial document has already become inactive.
 async_test(t => {
   const div = document.body.appendChild(document.createElement("div"));
   t.add_cleanup(() => div.remove());
@@ -88,15 +92,17 @@ async_test(t => {
   const img = frame.contentDocument.createElement("img");
   img.src = new URL("resources/slow-png.py", document.URL);
   img.onload = t.unreached_func("Image loading should have errored");
-  img.onerror = t.step_func_done(() => {
-    assert_true(happened);
-  });
   // The image fetch starts in a microtask, so let's be sure to test after
   // the fetch has started.
   t.step_timeout(() => {
     frame.contentDocument.open();
     happened = true;
   });
+  // If 3 seconds have passed and the image has still not loaded, we consider
+  // it aborted. slow-png.py only sleeps for 2 wallclock seconds.
+  t.step_timeout(t.step_func_done(() => {
+    assert_true(happened);
+  }), 3000);
 }, "document.open() aborts documents that are navigating through iframe loading (image loading)");
 
 async_test(t => {
@@ -149,9 +155,6 @@ async_test(t => {
     const img = frame.contentDocument.createElement("img");
     img.src = new URL("resources/slow-png.py", document.URL);
     img.onload = t.unreached_func("Image loading should have errored");
-    img.onerror = t.step_func_done(() => {
-      assert_true(happened);
-    });
     // The image fetch starts in a microtask, so let's be sure to test after
     // the fetch has started.
     t.step_timeout(() => {
@@ -159,5 +162,10 @@ async_test(t => {
       frame.contentDocument.open();
       happened = true;
     });
+    // If 3 seconds have passed and the image has still not loaded, we consider
+    // it aborted. slow-png.py only sleeps for 2 wallclock seconds.
+    t.step_timeout(t.step_func_done(() => {
+      assert_true(happened);
+    }), 3000);
   });
 }, "document.open() aborts documents that are queued for navigation through .click() (image loading)");
