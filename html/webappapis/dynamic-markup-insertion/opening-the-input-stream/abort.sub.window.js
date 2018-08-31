@@ -3,6 +3,7 @@ async_test(t => {
   t.add_cleanup(() => frame.remove());
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
+    frame.onload = null;
     let happened = false;
     const client = new frame.contentWindow.XMLHttpRequest();
     client.open("GET", "/common/blank.html");
@@ -23,9 +24,10 @@ async_test(t => {
   t.add_cleanup(() => frame.remove());
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
+    frame.onload = null;
     let happened = false;
     frame.contentWindow.fetch("/common/blank.html").then(
-      t.step_func_done(err => {
+      t.step_func_done(() => {
         assert_true(happened);
       }),
       t.unreached_func("Fetch should have succeeded")
@@ -40,6 +42,7 @@ async_test(t => {
   t.add_cleanup(() => frame.remove());
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
+    frame.onload = null;
     let happened = false;
     const img = frame.contentDocument.createElement("img");
     img.src = new URL("resources/slow-png.py", document.URL);
@@ -63,6 +66,7 @@ async_test(t => {
   t.add_cleanup(() => frame.remove());
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
+    frame.onload = null;
     let happened = false;
     const ws = new frame.contentWindow.WebSocket(`ws://${__SERVER__NAME}:${__PORT}/echo`);
     ws.onopen = t.step_func_done(() => {
@@ -84,6 +88,7 @@ async_test(t => {
   t.add_cleanup(() => frame.remove());
   frame.src = "/common/blank.html";
   frame.onload = t.step_func(() => {
+    frame.onload = null;
     let happened = false;
     const ws = new frame.contentWindow.WebSocket(`ws://${__SERVER__NAME}:${__PORT}/echo`);
     ws.onopen = t.step_func(() => {
