@@ -25,11 +25,12 @@ function generateCertificate(keygenAlgorithm) {
   });
 }
 
-test(t => {
+promise_test(async t => {
+  const certificate = await generateCertificate();
   // Don't use the makeQuicTransport helper so that the transport property can
   // be verified.
   const iceTransport = new RTCIceTransport();
-  const quicTransport = new RTCQuicTransport(iceTransport, []);
+  const quicTransport = new RTCQuicTransport(iceTransport, [ certificate ]);
   t.add_cleanup(() => {
     quicTransport.stop();
     iceTransport.stop();
@@ -38,12 +39,12 @@ test(t => {
       'Expect transport to be the same as the one passed in the constructor.');
   assert_equals(quicTransport.state, 'new', `Expect state to be 'new'.`);
   assert_object_equals(quicTransport.getLocalParameters(),
-      { role: 'auto', fingerprints: [] },
+      { role: 'auto', fingerprints: certificate.getFingerprints() },
       'Expect local parameters to be initialized.');
   assert_equals(quicTransport.getRemoteParameters(), null,
       'Expect no remote parameters.');
-  assert_array_equals(quicTransport.getCertificates(), [],
-      'Expect not certificates.');
+  assert_array_equals(quicTransport.getCertificates(), [ certificate ],
+      'Expect one certificate.');
   assert_array_equals(quicTransport.getRemoteCertificates(), [],
       'Expect no remote certificates.');
 }, 'RTCQuicTransport initial properties are set.');
@@ -78,18 +79,86 @@ promise_test(async t => {
       () => makeQuicTransport(t, [ expiredCertificate ]));
 }, 'RTCQuicTransport constructor throws if passed an expired certificate.');
 
-test(t => {
+promise_test(async t => {
+  const certificate = await generateCertificate();
   const iceTransport = new RTCIceTransport();
   iceTransport.stop();
   assert_throws('InvalidStateError',
-      () => new RTCQuicTransport(iceTransport, []));
+      () => new RTCQuicTransport(iceTransport, [ certificate ]));
 }, 'RTCQuicTransport constructor throws if passed a closed RTCIceTransport.');
 
-test(t => {
-  const quicTransport = makeQuicTransport(t, []);
+promise_test(async t => {
+  const certificate = await generateCertificate();
+  const firstQuicTransport = makeQuicTransport(t, [ certificate ]);
+  assert_throws('InvalidStateError', () => new RTCQuicTransport(
+      firstQuicTransport.transport, [ certificate ]));
+}, 'RTCQuicTransport constructor throws if passed an RTCIceTransport that ' +
+    'already has an active RTCQuicTransport.');
+
+promise_test(async t => {
+  const certificate = await generateCertificate();
+  const quicTransport = makeQuicTransport(t, [ certificate ]);
   quicTransport.stop();
   assert_equals(quicTransport.state, 'closed');
 }, `stop() changes state to 'closed'.`);
+
+promise_test(async t => {
+  const certificate = await generateCertificate();
+  const quicTransport = makeQuicTransport(t, [ certificate ]);
+  quicTransport.start(quicTransport.getLocalParameters());
+  assert_equals(quicTransport.state, 'connecting');
+}, `start() changes state to 'connecting'`);
+
+promise_test(async t => {
+  const certificate = await generateCertificate();
+  const quicTransport = makeQuicTransport(t, [ certificate ]);
+  quicTransport.stop();
+  assert_throws('InvalidStateError',
+      () => quicTransport.start(quicTransport.getLocalParameters()));
+}, 'start() throws if called after stop().');
+
+promise_test(async t => {
+  const certificate = await generateCertificate();
+  const quicTransport = makeQuicTransport(t, [ certificate ]);
+  quicTransport.start(quicTransport.getLocalParameters());
+  assert_throws('InvalidStateError',
+      () => quicTransport.start(quicTransport.getLocalParameters()));
+}, 'start() throws if called twice.');
+
+promise_test(async t => {
+  const [ localCertificate, remoteCertificate ] =
+      await Promise.all([ generateCertificate(), generateCertificate() ]);
+  const localQuicTransport = makeQuicTransport(t, [ localCertificate ]);
+  const localIceTransport = localQuicTransport.transport;
+  const remoteQuicTransport = makeQuicTransport(t, [ remoteCertificate ]);
+  const remoteIceTransport = remoteQuicTransport.transport;
+  localIceTransport.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      remoteIceTransport.addRemoteCandidate(candidate);
+    }
+  };
+  remoteIceTransport.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      localIceTransport.addRemoteCandidate(candidate);
+    }
+  };
+  localIceTransport.gather({});
+  remoteIceTransport.gather({});
+  localIceTransport.start(remoteIceTransport.getLocalParameters(), 'controlling');
+  remoteIceTransport.start(localIceTransport.getLocalParameters(), 'controlled');
+  localQuicTransport.start(remoteQuicTransport.getLocalParameters());
+  remoteQuicTransport.start(localQuicTransport.getLocalParameters());
+  const localWatcher = new EventWatcher(t, localQuicTransport, 'statechange');
+  const remoteWatcher = new EventWatcher(t, remoteQuicTransport, 'statechange');
+  await Promise.all([
+    localWatcher.wait_for('statechange').then(() => {
+      assert_equals(localQuicTransport.state, 'connected');
+    }),
+    remoteWatcher.wait_for('statechange').then(() => {
+      assert_equals(remoteQuicTransport.state, 'connected');
+    }),
+  ]);
+}, 'Two RTCQuicTransports connect to each other.');
 
 </script>
 
